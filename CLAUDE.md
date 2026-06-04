@@ -1,10 +1,6 @@
-# CLAUDE.md
+## Worktree manager
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-# wtm — worktree manager
-
-TUI interactivo para navegar y operar worktrees git via `worktrunk` (`wt`).
+TUI interactivo para navegar y operar worktrees git. Sin dependencias externas, usa git puro.
 
 ## Estructura
 
@@ -47,7 +43,7 @@ source /path/to/wtm/wtm.plugin.zsh
 
 ### Flujo de datos
 
-1. `_load_data()` ejecuta `wt list --format json` y parsea el JSON
+1. `_load_data()` ejecuta `git worktree list --porcelain` y construye los datos de cada worktree con comandos git
 2. `run_picker()` renderiza el TUI en `/dev/tty` en modo raw (`termios`)
 3. El picker devuelve un sentinel string: `"ACTION:path"` o `None`
 4. `_handle_action()` ejecuta la accion y devuelve `(continue_loop, select_path)`
@@ -57,19 +53,20 @@ source /path/to/wtm/wtm.plugin.zsh
 
 El picker devuelve uno de estos strings al bucle principal en `main()`:
 
-| Sentinel | Descripcion |
-|----------|-------------|
-| `CD:<path>` | Escribir path en cdfile y salir |
-| `LAZYGIT:<path>` | Escribir path en cdfile, lanzar lazygit, volver al picker |
-| `PULL:<path>` | `git pull` en ese worktree |
-| `PUSH:<path>` | `git push -u origin <branch>` |
-| `REBASE:<path>` | fetch + rebase desde main |
-| `MERGE:<path>` | fetch + merge desde main |
-| `FETCH:<path>` | `git fetch --all` desde el root del repo |
-| `DELETE:<path>` | `git worktree remove` con confirmacion |
-| `DELETEORPHAN:<path>` | `git worktree remove --force` sin confirmacion |
-| `PRUNEALL:<path>` | `wt step prune` en el root |
-| `CREATED:<path>` | Worktree creado; reabrir picker preseleccionando ese path |
+
+| Sentinel              | Descripcion                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `CD:<path>`           | Escribir path en cdfile y salir                                                             |
+| `LAZYGIT:<path>`      | Escribir path en cdfile, lanzar lazygit, volver al picker                                   |
+| `PULL:<path>`         | `git pull` en ese worktree                                                                  |
+| `PUSH:<path>`         | `git push -u origin <branch>`                                                               |
+| `REBASE:<path>`       | fetch + rebase desde main                                                                   |
+| `MERGE:<path>`        | fetch + merge desde main                                                                    |
+| `FETCH:<path>`        | `git fetch --all` desde el root del repo                                                    |
+| `DELETE:<path>`       | `git worktree remove` con confirmacion                                                      |
+| `DELETEORPHAN:<path>` | `git worktree remove --force` sin confirmacion                                              |
+| `PRUNEALL:<path>`     | `git fetch --prune` + `git worktree prune` + elimina worktrees integrados (>1 dia, limpios) |
+| `CREATED:<path>`      | Worktree creado; reabrir picker preseleccionando ese path                                   |
 
 ### Columna PR (carga asincrona)
 
@@ -96,7 +93,7 @@ Lazygit necesita `SIGINT` para responder a Ctrl+C. El handler: Python ignora SIG
 
 ## Requisitos del sistema
 
-- `/opt/homebrew/bin/wt` — worktrunk (fuente de datos)
+- `git` en PATH — requerido
 - `/opt/homebrew/bin/python3` — Python 3.9+
 - `lazygit` en PATH — opcional, solo para tecla `l`
 - `gh` en PATH — opcional, solo para columna PR
