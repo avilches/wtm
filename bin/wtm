@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+# wtm — wrapper: calls Python app, only handles cd (can't be done in subprocess)
+_D="${0:A:h}/.."
+exec /opt/homebrew/bin/python3 "$_D/wtm.py" "$@"
