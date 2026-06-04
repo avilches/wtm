@@ -1,5 +1,6 @@
 import os
 import select
+import shutil
 import subprocess
 import termios
 import threading
@@ -9,6 +10,8 @@ from .colors import RESET, BOLD, WHITE, GREEN, BLUE, RED, DIM, CYAN
 from .renderer import build_line, detail_line
 from .predicates import can_pull, can_push, can_rebase_or_merge, can_delete, is_orphan
 from . import pr as _pr
+
+_LAZYGIT = shutil.which("lazygit")
 
 
 def get_all_branches(root, data):
@@ -381,7 +384,9 @@ def run_picker(wts, header, now, W, root="", select_path=None):
         def h(key, label):
             return f"{WHITE}{key}{RESET}{DIM}: {label}"
 
-        hints = [h("C", "create"), h("f", "fetch"), h("l", "lazygit"), h("D", "prune all")]
+        hints = [h("C", "create"), h("f", "fetch"), h("D", "prune all")]
+        if _LAZYGIT:
+            hints.insert(2, h("l", "lazygit"))
         if can_pull(wt):
             rb = (wt.get("remote") or {}).get("behind", 0)
             hints.append(h("p", f"pull {RESET}{BLUE}↓{rb}{RESET}{DIM}"))
@@ -450,7 +455,7 @@ def run_picker(wts, header, now, W, root="", select_path=None):
                 selected = len(items) - 1
                 render()
 
-            elif ch == b"l":
+            elif ch == b"l" and _LAZYGIT:
                 return f"LAZYGIT:{items[selected][0]}"
 
             elif ch == b"r":
