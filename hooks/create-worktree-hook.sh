@@ -4,28 +4,15 @@ set -euo pipefail
 WORKTREE_PATH="${1:?Usage: create-worktree-hook.sh <worktree-path> <worktree-name>}"
 WT_NAME="${2:?Usage: create-worktree-hook.sh <worktree-path> <worktree-name>}"
 
-GREEN='\033[0;32m'
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-DIM='\033[2m'
 NC='\033[0m'
 
-# ── Sync settings (.claude, .idea, .run) ─────────────────────────────────────
-if command -v sync-settings >/dev/null 2>&1; then
-    echo -e "  ${YELLOW}->  ${NC}Syncing settings..."
-    if sync-settings --path "$WORKTREE_PATH" 2>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} Settings synced"
-    else
-        echo -e "  ${DIM}(sync-settings: no changes)${NC}"
-    fi
-    echo
-fi
+echo -e "  ${YELLOW}->  ${NC}Syncing .claude settings..."
+"$HOOKS_DIR/copy-.claude-settings.sh" "$WORKTREE_PATH" "$WT_NAME"
+echo
 
-# ── Patch .idea/.name ────────────────────────────────────────────────────────
-idea_name_file="$WORKTREE_PATH/.idea/.name"
-if [[ -f "$idea_name_file" ]]; then
-    base_name=$(cat "$idea_name_file")
-    printf '%s:%s' "$base_name" "$WT_NAME" > "$idea_name_file"
-    echo -e "  ${GREEN}✓${NC} .idea/.name: ${CYAN}${base_name}:${WT_NAME}${NC}"
-    echo
-fi
+echo -e "  ${YELLOW}->  ${NC}Syncing .idea folders..."
+"$HOOKS_DIR/copy-idea-folders.sh" "$WORKTREE_PATH" "$WT_NAME"
+echo
