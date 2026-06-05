@@ -66,13 +66,22 @@ wtm
 wtm busca un fichero `.wtm-config.yaml` en la raiz del repositorio. Si existe, carga la configuracion al ejecutar operaciones.
 
 ```yaml
+# un solo hook
 hooks:
   create-worktree: /ruta/al/script.sh
+
+# varios hooks (se ejecutan en orden)
+hooks:
+  create-worktree:
+    - /ruta/al/primero.sh
+    - /ruta/al/segundo.sh
 ```
 
 ### hooks.create-worktree
 
-Si esta definido, wtm ejecuta ese script justo despues de crear un worktree nuevo (tecla `C`). Recibe dos argumentos posicionales:
+Si esta definido, wtm ejecuta ese script (o scripts) justo despues de crear un worktree nuevo (tecla `C`). Cada script recibe dos argumentos posicionales.
+
+Si un fichero no existe, se muestra un aviso y se continua con el siguiente sin fallar.
 
 ```
 <script> <wt_path> <wt_name>

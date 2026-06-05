@@ -50,12 +50,14 @@ def get_all_branches(root, data):
     return result[:60]
 
 
-def _read_create_hook(root):
-    """Lee .wtm-config.yaml del root del repo y devuelve el path del hook create-worktree, o None."""
+def _read_create_hooks(root):
+    """Lee .wtm-config.yaml y devuelve lista de paths para hooks.create-worktree (puede ser uno o varios)."""
     config_path = os.path.join(root, ".wtm-config.yaml")
     if not os.path.isfile(config_path):
-        return None
+        return []
     in_hooks = False
+    in_create = False  # dentro de una lista multi-valor
+    results = []
     with open(config_path) as f:
         for line in f:
             stripped = line.rstrip()
@@ -64,13 +66,23 @@ def _read_create_hook(root):
             indent = len(line) - len(line.lstrip())
             if indent == 0:
                 in_hooks = stripped.rstrip(":") == "hooks"
-            elif in_hooks and indent > 0:
+                in_create = False
+            elif in_hooks and not in_create:
                 if ":" in stripped:
                     key, _, val = stripped.partition(":")
                     if key.strip() == "create-worktree":
                         path = val.strip()
-                        return path if path else None
-    return None
+                        if path:
+                            return [path]  # valor en la misma linea
+                        in_create = True   # esperar lista
+            elif in_create:
+                if stripped.lstrip().startswith("- "):
+                    path = stripped.lstrip()[2:].strip()
+                    if path:
+                        results.append(path)
+                else:
+                    break  # fin de la lista
+    return results
 
 
 def run_create_picker(data, root, tty_file, fd):
@@ -331,8 +343,11 @@ def run_create_picker(data, root, tty_file, fd):
             proc = subprocess.run(cmd, capture_output=True, text=True)
 
             if proc.returncode == 0:
-                _hook = _read_create_hook(root)
-                if _hook:
+                for _hook in _read_create_hooks(root):
+                    if not os.path.isfile(_hook):
+                        write(f"  {DIM}(hook not found: {_hook}){RESET}\r\n")
+                        continue
+                    write(f"  {DIM}$ {os.path.basename(_hook)}{RESET}\r\n")
                     _hr = subprocess.run([_hook, wt_path, wt_name], capture_output=True, text=True)
                     for _line in (_hr.stdout + _hr.stderr).splitlines():
                         write(_line.rstrip() + "\r\n")
