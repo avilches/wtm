@@ -43,6 +43,11 @@ def main():
             break
 
         action, _, path = result.partition(":")
+        if action == "REFRESH":
+            select_path = path or None
+            data = _load_data()
+            continue
+
         cont, select_path = _handle_action(action, path, cdfile, data)
         if not cont:
             break

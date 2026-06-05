@@ -276,7 +276,7 @@ def _handle_action(action, path, cdfile, data):
         old_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
         subprocess.run(["lazygit"], cwd=path, env=env, preexec_fn=_reset_sigint)
         signal.signal(signal.SIGINT, old_sigint)
-        return True, None
+        return True, path
 
     elif action == "PULL":
         print()
@@ -288,7 +288,7 @@ def _handle_action(action, path, cdfile, data):
         else:
             print("\033[31m  Pull failed (conflicts or no tracking branch)\033[0m")
             _pause("  Press any key...")
-        return True, None
+        return True, path
 
     elif action == "PUSH":
         print()
@@ -305,7 +305,7 @@ def _handle_action(action, path, cdfile, data):
         else:
             print("\033[31m  Push failed (rejected or remote unreachable)\033[0m")
             _pause("  Press any key...")
-        return True, None
+        return True, path
 
     elif action in ("REBASE", "MERGE"):
         print()
@@ -352,7 +352,7 @@ def _handle_action(action, path, cdfile, data):
                 print("\033[31m  Merge conflicts detected - resolve manually\033[0m")
                 _pause("  Press any key...")
                 sys.exit(1)
-        return True, None
+        return True, path
 
     elif action == "DELETE":
         print()
@@ -377,7 +377,7 @@ def _handle_action(action, path, cdfile, data):
         else:
             print("\033[31m  Failed to remove worktree\033[0m")
         _pause()
-        return True, None
+        return True, path
 
     elif action == "PRUNEALL":
         print()
@@ -429,7 +429,7 @@ def _handle_action(action, path, cdfile, data):
             parts.append(f"\033[33m{skipped} skipped (dirty)\033[0m")
         print("  " + ("  ".join(parts) if parts else "\033[32mNothing to prune\033[0m"))
         _pause()
-        return True, None
+        return True, path
 
     elif action == "FETCH":
         print()
@@ -444,7 +444,7 @@ def _handle_action(action, path, cdfile, data):
         else:
             print("\033[31m  Fetch failed\033[0m")
             _pause("  Press any key...")
-        return True, None
+        return True, path
 
     elif action == "CREATED":
         return True, path

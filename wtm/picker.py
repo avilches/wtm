@@ -6,10 +6,11 @@ import termios
 import threading
 import tty as tty_mod
 
-from .colors import RESET, BOLD, WHITE, GREEN, BLUE, RED, DIM, CYAN
+from .colors import RESET, BOLD, WHITE, GREEN, BLUE, RED, DIM, CYAN, BG_SEL
 from .renderer import build_line, detail_line
 from .predicates import can_pull, can_push, can_rebase_or_merge, can_delete, is_orphan
 from . import pr as _pr
+from . import refresh as _refresh
 
 _LAZYGIT = shutil.which("lazygit")
 
@@ -380,6 +381,7 @@ def run_picker(wts, header, now, W, root="", select_path=None):
     old_settings = termios.tcgetattr(fd)
     selected = 0
     scroll = 0
+    _clear_on_exit = [True]
 
     def make_items():
         return [(wt.get("path", ""), build_line(wt, now, W), wt) for wt in wts]
@@ -415,14 +417,17 @@ def run_picker(wts, header, now, W, root="", select_path=None):
         write(f"  {'-' * (len(header) - 2)}\r\n")
 
         for i, (path, line, _wt) in enumerate(items[scroll : scroll + page]):
-            cursor = f"{BOLD}\033[97m>\033[0m " if scroll + i == selected else "  "
-            write(cursor + line + "\r\n")
+            if scroll + i == selected:
+                hl = line.replace(RESET, RESET + BG_SEL)
+                write(f"  {BG_SEL}{hl}{RESET}\r\n")
+            else:
+                write(f"  {line}\r\n")
 
         _path, _line, wt = items[selected]
         write(f"\r\n{detail_line(wt)}\r\n")
 
         def h(key, label):
-            return f"{WHITE}{key}{RESET}{DIM}: {label}"
+            return f"{BOLD}{key}{RESET}{DIM}: {label}"
 
         hints = [h("C", "create"), h("f", "fetch"), h("D", "prune all")]
         if _LAZYGIT:
@@ -447,12 +452,19 @@ def run_picker(wts, header, now, W, root="", select_path=None):
         display_path = abs_path if rel_path == "." else rel_path
         write(f"{DIM}  {display_path}{RESET}\r\n")
 
+    _pr.pr_map = {}
+    _pr._pr_state["loading"] = True
+    _pr._pr_state["frame"] = 0
+    _pr._pr_ready.clear()
+
     def _load_prs():
         _pr.pr_map = _pr.fetch_pr_map(cwd=root or None)
         _pr._pr_state["loading"] = False
         _pr._pr_ready.set()
 
     threading.Thread(target=_load_prs, daemon=True).start()
+    _refresh.start(root)
+    _refresh.pending()  # drain any event set before entering picker; data is fresh
 
     try:
         tty_mod.setraw(fd)
@@ -470,6 +482,9 @@ def run_picker(wts, header, now, W, root="", select_path=None):
                 items = make_items()
                 render()
             if not ready:
+                if _refresh.pending():
+                    _clear_on_exit[0] = False
+                    return f"REFRESH:{items[selected][0]}"
                 continue
             ch = tty_file.read(1)
 
@@ -496,40 +511,49 @@ def run_picker(wts, header, now, W, root="", select_path=None):
                 render()
 
             elif ch == b"l" and _LAZYGIT:
+                _clear_on_exit[0] = False
                 return f"LAZYGIT:{items[selected][0]}"
 
             elif ch == b"r":
                 if can_rebase_or_merge(items[selected][2]):
+                    _clear_on_exit[0] = False
                     return f"REBASE:{items[selected][0]}"
 
             elif ch == b"u":
                 if can_rebase_or_merge(items[selected][2]):
+                    _clear_on_exit[0] = False
                     return f"MERGE:{items[selected][0]}"
 
             elif ch == b"p":
                 if can_pull(items[selected][2]):
+                    _clear_on_exit[0] = False
                     return f"PULL:{items[selected][0]}"
 
             elif ch == b"P":
                 if can_push(items[selected][2]):
+                    _clear_on_exit[0] = False
                     return f"PUSH:{items[selected][0]}"
 
             elif ch == b"f":
+                _clear_on_exit[0] = False
                 return f"FETCH:{items[selected][0]}"
 
             elif ch == b"d":
                 if can_delete(items[selected][2]):
+                    _clear_on_exit[0] = False
                     if is_orphan(items[selected][2]):
                         return f"DELETEORPHAN:{items[selected][0]}"
                     else:
                         return f"DELETE:{items[selected][0]}"
 
             elif ch == b"D":
+                _clear_on_exit[0] = False
                 return f"PRUNEALL:{items[selected][0]}"
 
             elif ch == b"C":
                 result = run_create_picker(wts, root, tty_file, fd)
                 if result:
+                    _clear_on_exit[0] = False
                     return result
                 else:
                     items = make_items()
@@ -552,7 +576,10 @@ def run_picker(wts, header, now, W, root="", select_path=None):
     finally:
         try:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            write(b"\033[?25h\033[2J\033[H")
+            if _clear_on_exit[0]:
+                write(b"\033[?25h\033[2J\033[H")
+            else:
+                write(b"\033[?25h\r\n")
             tty_file.close()
         except Exception:
             pass
