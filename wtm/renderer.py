@@ -91,7 +91,7 @@ def state_color(worktree):
 
 def col_widths(data, now):
     bw = max(len("Branch"), max((len(wt.get("branch") or "(detached)") for wt in data), default=0))
-    fw = max(len("Flags"),  4)
+    fw = max(len("Changes"), 4)
     sw = max(len("State"),  max((len(_ANSI_RE.sub("", state_info(wt)[0])) for wt in data), default=0))
     rw = max(len("Remote"), max((len(_ANSI_RE.sub("", remote_sync(wt))) for wt in data), default=0))
     aw = max(len("Age"),    max((len(age(wt.get("commit", {}).get("timestamp", now), now)) for wt in data), default=0))
@@ -100,7 +100,7 @@ def col_widths(data, now):
 
 def make_header(W):
     bw, fw, sw, rw, aw = W
-    return f"    {'Branch':<{bw}}  {'Flags':<{fw}}  {'State':<{sw}}  {'Remote':<{rw}}  {'PR':<10}  {'Age':<{aw}}  Commit"
+    return f"    {'Branch':<{bw}}  {'Changes':<{fw}}  {'State':<{sw}}  {'Remote':<{rw}}  {'PR':<10}  {'Age':<{aw}}  Commit"
 
 
 def build_line(wt, now, W):
@@ -121,13 +121,13 @@ def build_line(wt, now, W):
         pr_info = _pr.pr_map.get(branch)
         if pr_info:
             pr_num = pr_info["number"]
-            state  = pr_info["state"]
+            pr_st  = pr_info["state"]
             draft  = pr_info["draft"]
             if draft:
                 badge = f"{BG_GRAY}{WHITE_FG} D {RESET}"
-            elif state == "OPEN":
+            elif pr_st == "OPEN":
                 badge = f"{BG_GREEN}{WHITE_FG} O {RESET}"
-            elif state == "MERGED":
+            elif pr_st == "MERGED":
                 badge = f"{BG_PURPLE}{WHITE_FG} M {RESET}"
             else:
                 badge = f"{BG_RED}{WHITE_FG} C {RESET}"
