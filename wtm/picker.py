@@ -50,6 +50,29 @@ def get_all_branches(root, data):
     return result[:60]
 
 
+def _read_create_hook(root):
+    """Lee .wtm-config.yaml del root del repo y devuelve el path del hook create-worktree, o None."""
+    config_path = os.path.join(root, ".wtm-config.yaml")
+    if not os.path.isfile(config_path):
+        return None
+    in_hooks = False
+    with open(config_path) as f:
+        for line in f:
+            stripped = line.rstrip()
+            if not stripped or stripped.lstrip().startswith("#"):
+                continue
+            indent = len(line) - len(line.lstrip())
+            if indent == 0:
+                in_hooks = stripped.rstrip(":") == "hooks"
+            elif in_hooks and indent > 0:
+                if ":" in stripped:
+                    key, _, val = stripped.partition(":")
+                    if key.strip() == "create-worktree":
+                        path = val.strip()
+                        return path if path else None
+    return None
+
+
 def run_create_picker(data, root, tty_file, fd):
     """
     Inline create-worktree subscreen.
@@ -308,13 +331,11 @@ def run_create_picker(data, root, tty_file, fd):
             proc = subprocess.run(cmd, capture_output=True, text=True)
 
             if proc.returncode == 0:
-                _local_hook = os.path.join(root, "hooks", "create-worktree-hook.sh")
-                _hook_r = subprocess.run(["which", "create-worktree-hook.sh"], capture_output=True)
-                _hook = _local_hook if os.path.isfile(_local_hook) else (
-                    "create-worktree-hook.sh" if _hook_r.returncode == 0 else None
-                )
+                _hook = _read_create_hook(root)
                 if _hook:
-                    subprocess.run([_hook, wt_path, wt_name], capture_output=True)
+                    _hr = subprocess.run([_hook, wt_path, wt_name], capture_output=True, text=True)
+                    for _line in (_hr.stdout + _hr.stderr).splitlines():
+                        write(_line.rstrip() + "\r\n")
                 write(f"  {GREEN}✓ Worktree ready{RESET}\r\n")
                 write(f"\r\n  {DIM}Press any key to return to picker...{RESET}")
                 tty_file.read(1)

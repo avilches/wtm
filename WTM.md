@@ -61,6 +61,40 @@ wtm
 | `→N` (azul) | N commits por detras de main (puedes hacer r o u) |
 | `←N →M` | diverged: N propios, M de main sin integrar |
 
+## Configuracion (.wtm-config.yaml)
+
+wtm busca un fichero `.wtm-config.yaml` en la raiz del repositorio. Si existe, carga la configuracion al ejecutar operaciones.
+
+```yaml
+hooks:
+  create-worktree: /ruta/al/script.sh
+```
+
+### hooks.create-worktree
+
+Si esta definido, wtm ejecuta ese script justo despues de crear un worktree nuevo (tecla `C`). Recibe dos argumentos posicionales:
+
+```
+<script> <wt_path> <wt_name>
+```
+
+| Argumento | Valor |
+|-----------|-------|
+| `$1` | path absoluto del worktree recien creado |
+| `$2` | nombre del worktree (el directorio, sin la ruta completa) |
+
+La salida del script (stdout y stderr) se muestra en pantalla antes de volver al picker.
+
+Ejemplo de script:
+
+```sh
+#!/bin/sh
+# $1 = path del worktree, $2 = nombre
+cd "$1"
+cp /ruta/a/.env .env
+echo "Entorno copiado"
+```
+
 ## Por que debe ser una funcion de shell, no un script
 
 `cd` solo funciona en el proceso actual de la shell. Un script subprocess no puede cambiar el directorio del padre. Por eso `wtm` es una `function` en `.zshrc`: el script escribe el path final, la funcion lo lee y hace el `cd`.
