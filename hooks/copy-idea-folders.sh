@@ -26,6 +26,15 @@ for dir in .run .idea; do
     done
 done
 
+while IFS= read -r iml; do
+    rel="${iml#$main_wt/}"
+    dst="$WORKTREE_PATH/$rel"
+    mkdir -p "$(dirname "$dst")"
+    cp "$iml" "$dst" 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} $rel"
+    copied=$((copied+1))
+done < <(find "$main_wt" -maxdepth 2 -name "*.iml" -not -path "*/.claude/*")
+
 idea_name_file="$WORKTREE_PATH/.idea/.name"
 if [[ -f "$idea_name_file" ]]; then
     base_name=$(cat "$idea_name_file")
