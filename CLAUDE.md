@@ -1,99 +1,103 @@
 ## Worktree manager
 
-TUI interactivo para navegar y operar worktrees git. Sin dependencias externas, usa git puro.
+TUI interactivo para navegar y operar worktrees git. Escrito en Go con bubbletea/lipgloss.
 
 ## Estructura
 
 ```
-wtm/
-  wtm.py            — app completa (TUI + action handlers)
-  bin/wtm           — wrapper zsh (exec al Python, pasa temp file)
-  wtm.plugin.zsh    — plugin de instalacion (source desde .zshrc)
-  WTM.md            — documentacion de usuario
+main.go                     — entry point (modo tabla y picker)
+internal/
+  git/
+    types.go                — tipos: WorktreeEntry, PRInfo, CommitInfo
+    parse.go                — parser de `git worktree list --porcelain`
+    load.go                 — Load(), GetMainBranch(), buildEntry()
+    pr.go                   — FetchPRMap(), RepoURL() via gh CLI
+  tui/
+    styles.go               — variables lipgloss
+    render.go               — ColWidths, BuildLine, MakeHeader, DetailLine
+    model.go                — Model bubbletea principal
+    create.go               — CreateModel: subpantalla de creación de worktrees
+  actions/
+    run.go                  — CDCmd, PullCmd, PushCmd, RebaseCmd, MergeCmd, FetchCmd, DeleteCmd, PruneAllCmd
+Makefile                    — `make build` compila a bin/wtm
+go.mod / go.sum
+wtm.plugin.zsh              — plugin zsh que define la función wtm()
+WTM.md                      — documentación de usuario
 ```
 
-## Ejecutar / probar
+## Compilar / ejecutar
 
 ```bash
-# Modo tabla (sin TUI, util para debuggear datos)
-/opt/homebrew/bin/python3 wtm.py
+# Compilar
+make build           # produce bin/wtm
+
+# Modo tabla (sin TUI, útil para debuggear datos)
+./bin/wtm
 
 # Modo picker interactivo (TUI completo)
-/opt/homebrew/bin/python3 wtm.py /tmp/wtm_test
-
-# Inyectar datos de prueba via stdin
-echo '[...]' | /opt/homebrew/bin/python3 wtm.py /tmp/wtm_test
+./bin/wtm /tmp/wtm_test
 
 # Preseleccionar un worktree al abrir
-/opt/homebrew/bin/python3 wtm.py /tmp/wtm_test --select=/path/to/wt
+./bin/wtm /tmp/wtm_test --select=/path/to/wt
 ```
 
-No hay tests automatizados. La verificacion es siempre manual.
+No hay tests automatizados. La verificación es siempre manual.
 
-## Instalacion
+## Instalación
 
 ```zsh
 # En ~/.zshrc:
 source /path/to/wtm/wtm.plugin.zsh
 ```
 
-`wtm.plugin.zsh` define la funcion `wtm()` que crea un tmpfile, invoca `bin/wtm`, lee el path resultante y hace `cd`. El `cd` debe ocurrir en el proceso padre de la shell, por eso es funcion y no script.
+`wtm.plugin.zsh` define la función `wtm()` que crea un tmpfile, invoca `bin/wtm`, lee el path resultante y hace `cd`. El `cd` debe ocurrir en el proceso padre de la shell, por eso es función y no script.
 
 ## Arquitectura
 
 ### Flujo de datos
 
-1. `_load_data()` ejecuta `git worktree list --porcelain` y construye los datos de cada worktree con comandos git
-2. `run_picker()` renderiza el TUI en `/dev/tty` en modo raw (`termios`)
-3. El picker devuelve un sentinel string: `"ACTION:path"` o `None`
-4. `_handle_action()` ejecuta la accion y devuelve `(continue_loop, select_path)`
-5. Si `continue_loop`, se recarga data con `_load_data()` y se reabre el picker
+1. `git.Load()` ejecuta `git worktree list --porcelain` y construye `[]WorktreeEntry` con datos de rama, estado, remote, commits y PR
+2. `main.go` arranca bubbletea con `NewModel()` o imprime la tabla si no hay cdfile
+3. El loop de bubbletea maneja mensajes: teclas, PR cargado, ticks de refresco, resultados de acciones
+4. Las acciones son `tea.Cmd` que corren en goroutines y devuelven `ActionDoneMsg`
+5. `CreateModel` es un sub-modelo independiente que maneja la subpantalla de creación
 
-### Protocolo de sentinels
+### Modelo bubbletea (model.go)
 
-El picker devuelve uno de estos strings al bucle principal en `main()`:
+`Model` tiene estos modos:
 
+| Modo | Descripción |
+| ---- | ----------- |
+| `modeNormal` | vista principal con tabla |
+| `modeCreating` | subpantalla de creación (delega a `CreateModel`) |
+| `modeActionResult` | overlay con el log de la última acción |
+| `modeConfirm` | confirmación de borrado |
 
-| Sentinel              | Descripcion                                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------- |
-| `CD:<path>`           | Escribir path en cdfile y salir                                                             |
-| `LAZYGIT:<path>`      | Escribir path en cdfile, lanzar lazygit, volver al picker                                   |
-| `PULL:<path>`         | `git pull` en ese worktree                                                                  |
-| `PUSH:<path>`         | `git push -u origin <branch>`                                                               |
-| `REBASE:<path>`       | fetch + rebase desde main                                                                   |
-| `MERGE:<path>`        | fetch + merge desde main                                                                    |
-| `FETCH:<path>`        | `git fetch --all` desde el root del repo                                                    |
-| `DELETE:<path>`       | `git worktree remove` con confirmacion                                                      |
-| `DELETEORPHAN:<path>` | `git worktree remove --force` sin confirmacion                                              |
-| `PRUNEALL:<path>`     | `git fetch --prune` + `git worktree prune` + elimina worktrees integrados (>1 dia, limpios) |
-| `CREATED:<path>`      | Worktree creado; reabrir picker preseleccionando ese path                                   |
+### Columna PR (carga asíncrona)
 
-### Columna PR (carga asincrona)
+Se carga como `tea.Cmd` al arrancar. Mientras carga, el spinner anima con ticks de 100ms (`spinTickMsg`). Al completar devuelve `prLoadedMsg`. Refresco automático de worktrees cada 60 segundos con `refreshTickMsg`.
 
-La columna PR se carga en un thread daemon (`_load_prs`). Durante la carga, el spinner anima en cada tick de 0.1s via `select` timeout. Cuando el thread termina, setea `_pr_ready` (Event) y el bucle principal re-renderiza. Estado en globals: `pr_map`, `_pr_repo_url`, `_pr_state`.
+### Subpantalla de creación (tecla `C`)
 
-### Subpantalla de creacion (tecla `C`)
-
-`run_create_picker()` es una maquina de estados inline que reutiliza el mismo fd `/dev/tty` ya abierto en raw mode:
+`CreateModel` es una máquina de estados:
 
 ```
-branches -> action (si branch sin worktree existente)
-         -> new_branch_name (si branch ya tiene worktree, o si elige "New branch")
-new_branch_name -> wt_name
-action -> wt_name (si elige "Use directly")
-wt_name -> execute
-execute -> CREATED:<path> (exito) | branches (fallo, reset)
+stBranches -> stAction (si la rama no tiene worktree)
+           -> stNewBranchName (si ya tiene worktree o elige "New branch")
+stNewBranchName -> stWTName
+stAction -> stWTName (si elige "Use directly")
+stWTName -> execute
+execute -> createDoneMsg{path} (éxito) | stBranches (fallo, reset)
 ```
 
 Los worktrees se crean en `.claude/worktrees/<nombre>` dentro del root del repo.
 
-### SIGINT y lazygit
+### Hooks (.wtm-config.yaml)
 
-Lazygit necesita `SIGINT` para responder a Ctrl+C. El handler: Python ignora SIGINT (`SIG_IGN`) antes de `subprocess.run`, y usa `preexec_fn=_reset_sigint` para que el proceso hijo restaure `SIG_DFL` antes de ejecutarse. Al volver, se restaura el handler original de Python.
+Tras crear un worktree, `readCreateHooks()` parsea `.wtm-config.yaml` en el root del repo y ejecuta los scripts definidos en `hooks.create-worktree`. Cada script recibe `<wt_path> <wt_name>`.
 
 ## Requisitos del sistema
 
 - `git` en PATH — requerido
-- `/opt/homebrew/bin/python3` — Python 3.9+
 - `lazygit` en PATH — opcional, solo para tecla `l`
 - `gh` en PATH — opcional, solo para columna PR

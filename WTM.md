@@ -22,7 +22,7 @@ wtm
 | `C` | crear worktree (subpantalla inline) |
 | `l` | cd + abrir lazygit (vuelve al picker al salir) |
 | `f` | fetch --all desde el root del repo |
-| `D` | prune all: llama a `wt step prune` |
+| `D` | prune all: fetch --prune + worktree prune + borra worktrees MERGED limpios con >1 dia |
 | `q` / `Esc` / `Ctrl+C` | salir sin hacer nada |
 
 ### Operaciones condicionales (solo si aplican al worktree seleccionado)
@@ -41,7 +41,7 @@ wtm
 |---------|-------------|
 | `@` | worktree actual (donde estas) |
 | `Branch` | nombre de la rama. Verde si es la actual, gris si es candidata a borrar |
-| `Flags` | `S`=staged · `M`=modificado · `?`=untracked · `D`=eliminado · `-`=limpio |
+| `Changes` | `S`=staged · `M`=modificado · `?`=untracked · `D`=eliminado · `-`=limpio |
 | `State` | estado respecto a main (ver abajo) |
 | `Remote` | `up to date` · `↓N`=commits para pullear · `↑N`=commits para pushear · `no-remote` |
 | `Age` | tiempo desde el ultimo commit |
@@ -55,7 +55,6 @@ wtm
 | `MERGED` | ya integrado en main, se puede borrar |
 | `ORPHAN` | la rama remota fue borrada, se puede borrar |
 | `=` | mismo commit que main |
-| `C` (amarillo) | tiene cambios que conflictuan con main |
 | `empty` | sin commits todavia |
 | `←N` (verde) | N commits por delante de main |
 | `→N` (azul) | N commits por detras de main (puedes hacer r o u) |
