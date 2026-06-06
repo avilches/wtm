@@ -5,11 +5,16 @@ Interactive TUI for navigating and operating git worktrees. Browse worktrees (li
 ## Requirements
 
 - [`git`](https://git-scm.com)
-- [Python 3.9+](https://www.python.org/downloads/) at `/opt/homebrew/bin/python3`
 - [`lazygit`](https://github.com/jesseduffield/lazygit) in PATH (optional — if not installed, the `l` key is hidden)
 - [`gh`](https://cli.github.com) in PATH (optional, for the PR column)
 
 ## Installation
+
+Build the binary:
+
+```bash
+make build
+```
 
 Add to `~/.zshrc`:
 
@@ -61,8 +66,8 @@ Then open a new shell and run `wtm`.
 | -------- | ---------------------------------------------------------------------------- |
 | `@`      | current worktree                                                             |
 | `Branch` | branch name                                                                  |
-| `Flags`  | `S`=staged `M`=modified `?`=untracked `D`=deleted `-`=clean                  |
-| `State`  | relation to main:`←N` ahead, `→N` behind, `MERGED`, `ORPHAN`, `C` conflict |
+| `Changes` | `S`=staged `M`=modified `?`=untracked `D`=deleted `-`=clean                 |
+| `State`  | relation to main: `←N` ahead, `→N` behind, `MERGED`, `ORPHAN`              |
 | `Remote` | `↑N` to push, `↓N` to pull, `up to date`, `no-remote`                      |
 | `PR`     | pull request status for the branch                                           |
 | `Age`    | time since last commit                                                       |
