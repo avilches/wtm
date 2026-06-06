@@ -1,6 +1,28 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Worktree manager
 
 TUI interactivo para navegar y operar worktrees git. Escrito en Go con bubbletea/lipgloss.
+
+## Compilar y ejecutar
+
+```bash
+# Compilar
+make build           # produce bin/wtm
+
+# Modo tabla (sin TUI, imprime la lista y sale)
+./bin/wtm
+
+# Modo picker interactivo (TUI completo)
+./bin/wtm /tmp/wtm_test
+
+# Preseleccionar un worktree al abrir
+./bin/wtm /tmp/wtm_test --select=/path/to/wt
+```
+
+No hay tests automatizados. La verificación es siempre manual ejecutando el binario.
 
 ## Estructura
 
@@ -15,42 +37,14 @@ internal/
   tui/
     styles.go               — variables lipgloss
     render.go               — ColWidths, BuildLine, MakeHeader, DetailLine
-    model.go                — Model bubbletea principal
+    model.go                — Model bubbletea principal + handleKey + predicados
     create.go               — CreateModel: subpantalla de creación de worktrees
   actions/
     run.go                  — CDCmd, PullCmd, PushCmd, RebaseCmd, MergeCmd, FetchCmd, DeleteCmd, PruneAllCmd
-Makefile                    — `make build` compila a bin/wtm
-go.mod / go.sum
+Makefile                    — `make build`
 wtm.plugin.zsh              — plugin zsh que define la función wtm()
 WTM.md                      — documentación de usuario
 ```
-
-## Compilar / ejecutar
-
-```bash
-# Compilar
-make build           # produce bin/wtm
-
-# Modo tabla (sin TUI, útil para debuggear datos)
-./bin/wtm
-
-# Modo picker interactivo (TUI completo)
-./bin/wtm /tmp/wtm_test
-
-# Preseleccionar un worktree al abrir
-./bin/wtm /tmp/wtm_test --select=/path/to/wt
-```
-
-No hay tests automatizados. La verificación es siempre manual.
-
-## Instalación
-
-```zsh
-# En ~/.zshrc:
-source /path/to/wtm/wtm.plugin.zsh
-```
-
-`wtm.plugin.zsh` define la función `wtm()` que crea un tmpfile, invoca `bin/wtm`, lee el path resultante y hace `cd`. El `cd` debe ocurrir en el proceso padre de la shell, por eso es función y no script.
 
 ## Arquitectura
 
@@ -62,9 +56,7 @@ source /path/to/wtm/wtm.plugin.zsh
 4. Las acciones son `tea.Cmd` que corren en goroutines y devuelven `ActionDoneMsg`
 5. `CreateModel` es un sub-modelo independiente que maneja la subpantalla de creación
 
-### Modelo bubbletea (model.go)
-
-`Model` tiene estos modos:
+### Modos del modelo bubbletea (model.go)
 
 | Modo | Descripción |
 | ---- | ----------- |
@@ -94,7 +86,11 @@ Los worktrees se crean en `.claude/worktrees/<nombre>` dentro del root del repo.
 
 ### Hooks (.wtm-config.yaml)
 
-Tras crear un worktree, `readCreateHooks()` parsea `.wtm-config.yaml` en el root del repo y ejecuta los scripts definidos en `hooks.create-worktree`. Cada script recibe `<wt_path> <wt_name>`.
+Tras crear un worktree, `readCreateHooks()` parsea `.wtm-config.yaml` en el root del repo y ejecuta los scripts definidos en `hooks.create-worktree`. Cada script recibe `<wt_path> <wt_name>` como argumentos posicionales.
+
+## Por qué es función de shell y no script
+
+`cd` solo funciona en el proceso actual de la shell. `wtm.plugin.zsh` define `wtm()` como función: el binario escribe el path destino en un tmpfile, la función lo lee y hace el `cd`.
 
 ## Requisitos del sistema
 
