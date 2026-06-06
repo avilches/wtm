@@ -229,7 +229,10 @@ func BuildLine(e git.WorktreeEntry, w ColWidths, prMap map[string]git.PRInfo, pr
 		marker, branchStyled, changesStyled, statePadded, remotePadded, pr, ageStyled, msgStyled)
 
 	if selected {
-		line = "\033[48;5;237m" + line + "\033[0m"
+		const bgSel = "\033[48;5;237m"
+		line = strings.ReplaceAll(line, "\033[0m", "\033[0m"+bgSel)
+		line = strings.ReplaceAll(line, "\033[m", "\033[m"+bgSel)
+		line = bgSel + line + "\033[0m"
 	}
 	return line
 }

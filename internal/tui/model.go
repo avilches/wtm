@@ -405,7 +405,7 @@ func (m Model) viewNormal() string {
 
 func (m Model) viewHints(e git.WorktreeEntry) string {
 	h := func(key, label string) string {
-		return styleBold.Render(key) + styleDim.Render(": "+label)
+		return "\033[0m" + styleBold.Render(key) + styleDim.Render(": "+label)
 	}
 
 	hints := []string{h("C", "create"), h("f", "fetch"), h("D", "prune all")}
