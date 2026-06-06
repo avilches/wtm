@@ -11,32 +11,36 @@ echo "Installing wtm from $SCRIPT_DIR"
 echo ""
 
 # 1. Make scripts executable
-chmod +x "$SCRIPT_DIR/bin/wtm" "$SCRIPT_DIR/wtm.py" "$SCRIPT_DIR/wtm.plugin.zsh"
+chmod +x "$SCRIPT_DIR/bin/wtm" "$SCRIPT_DIR/wtm.plugin.zsh" "$SCRIPT_DIR/wtm.plugin.bash"
 echo -e "  ${GREEN}✓${NC} Scripts marked executable"
 
-# 2. Ensure source line is in ~/.zshrc
-ZSHRC="$HOME/.zshrc"
-if grep -q "wtm.plugin.zsh" "$ZSHRC" 2>/dev/null; then
-    echo -e "  ${GREEN}✓${NC} source line already in $ZSHRC"
+# Helper: adds a source line to a rc file if not already present
+add_source_line() {
+  local rcfile="$1" plugin="$2" shell_name="$3"
+  if grep -q "wtm.plugin" "$rcfile" 2>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} source line already in $rcfile"
+  else
+    echo "" >> "$rcfile"
+    echo "source \"$SCRIPT_DIR/$plugin\"" >> "$rcfile"
+    echo -e "  ${GREEN}✓${NC} Added $shell_name source line to $rcfile"
+  fi
+}
+
+# 2. zsh
+if [[ -f "$HOME/.zshrc" ]]; then
+  add_source_line "$HOME/.zshrc" "wtm.plugin.zsh" "zsh"
 else
-    echo "" >> "$ZSHRC"
-    echo "source \"\${WTM_DIR:-$SCRIPT_DIR}/wtm.plugin.zsh\"" >> "$ZSHRC"
-    echo -e "  ${GREEN}✓${NC} Added source line to $ZSHRC"
+  echo -e "  ${YELLOW}!${NC}  ~/.zshrc not found, skipping zsh"
 fi
 
-# 3. If wtm is not at the default path encoded in .zshrc, set WTM_DIR in .zprofile.local
-DEFAULT_PATH=$(grep "wtm.plugin.zsh" "$ZSHRC" | grep -o '".*wtm"' | tr -d '"' | head -1)
-if [[ -n "$DEFAULT_PATH" && "$DEFAULT_PATH" != "$SCRIPT_DIR" ]]; then
-    ZPROFILE_LOCAL="$HOME/.zprofile.local"
-    if grep -q "WTM_DIR" "$ZPROFILE_LOCAL" 2>/dev/null; then
-        sed -i '' "s|export WTM_DIR=.*|export WTM_DIR=\"$SCRIPT_DIR\"|" "$ZPROFILE_LOCAL"
-        echo -e "  ${GREEN}✓${NC} Updated WTM_DIR in $ZPROFILE_LOCAL"
-    else
-        echo "export WTM_DIR=\"$SCRIPT_DIR\"" >> "$ZPROFILE_LOCAL"
-        echo -e "  ${GREEN}✓${NC} Added WTM_DIR to $ZPROFILE_LOCAL"
-    fi
-    echo -e "  ${YELLOW}!${NC}  Path differs from .zshrc default — WTM_DIR set in .zprofile.local"
+# 3. bash — prefer .bashrc, fall back to .bash_profile
+if [[ -f "$HOME/.bashrc" ]]; then
+  add_source_line "$HOME/.bashrc" "wtm.plugin.bash" "bash"
+elif [[ -f "$HOME/.bash_profile" ]]; then
+  add_source_line "$HOME/.bash_profile" "wtm.plugin.bash" "bash"
+else
+  echo -e "  ${YELLOW}!${NC}  No bash config found (~/.bashrc or ~/.bash_profile), skipping bash"
 fi
 
 echo ""
-echo -e "  Done. Run: ${DIM}source ~/.zshrc${NC}"
+echo -e "  Done. Reload your shell or run: ${DIM}source ~/.zshrc${NC}"

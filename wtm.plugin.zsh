@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # wtm.plugin.zsh — source this from ~/.zshrc:
-#   source /Users/avilches/Work/Proy/Other/wtm/wtm.plugin.zsh
+#   source /path/to/wtm/wtm.plugin.zsh
 
 _WTM_DIR="${0:A:h}"
 

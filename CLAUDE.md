@@ -15,8 +15,11 @@ make build           # produce bin/wtm
 # Modo tabla (sin TUI, imprime la lista y sale)
 ./bin/wtm
 
-# Modo picker interactivo (TUI completo)
+# Modo picker interactivo (TUI completo, con cdfile para que la función wtm() haga cd)
 ./bin/wtm /tmp/wtm_test
+
+# Modo picker sin cdfile (útil para probar el TUI directamente, sin cd al salir)
+./bin/wtm --pick
 
 # Preseleccionar un worktree al abrir
 ./bin/wtm /tmp/wtm_test --select=/path/to/wt
@@ -43,6 +46,7 @@ internal/
     run.go                  — CDCmd, PullCmd, PushCmd, RebaseCmd, MergeCmd, FetchCmd, DeleteCmd, PruneAllCmd
 Makefile                    — `make build`
 wtm.plugin.zsh              — plugin zsh que define la función wtm()
+wtm.plugin.bash             — plugin bash equivalente
 WTM.md                      — documentación de usuario
 ```
 
@@ -90,7 +94,7 @@ Tras crear un worktree, `readCreateHooks()` parsea `.wtm-config.yaml` en el root
 
 ## Por qué es función de shell y no script
 
-`cd` solo funciona en el proceso actual de la shell. `wtm.plugin.zsh` define `wtm()` como función: el binario escribe el path destino en un tmpfile, la función lo lee y hace el `cd`.
+`cd` solo funciona en el proceso actual de la shell. Los plugins definen `wtm()` como función: el binario escribe el path destino en un tmpfile, la función lo lee y hace el `cd`. La diferencia entre los dos plugins es solo cómo obtienen su propio directorio (`${0:A:h}` en zsh, `${BASH_SOURCE[0]}` en bash).
 
 ## Requisitos del sistema
 
