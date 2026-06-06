@@ -110,35 +110,30 @@ echo "Entorno copiado"
 
 ## Componentes
 
-### `wtm.py`
-App Python completa. Gestiona el TUI con `termios`, el bucle de acciones (lazygit, pull, push, rebase, merge, delete, prune, fetch, crear worktree) y la tabla sin picker. Acepta `--select=<path>` para pre-seleccionar un worktree al arrancar (usado tras crear uno nuevo).
+### `bin/wtm`
+Binario compilado en Go. Gestiona el TUI con bubbletea/lipgloss, todas las acciones (lazygit, pull, push, rebase, merge, delete, prune, fetch, crear worktree) y la tabla sin picker. Acepta `--select=<path>` para pre-seleccionar un worktree al arrancar (usado tras crear uno nuevo).
 
 Tecla `C` abre la subpantalla de creacion inline: lista todas las ramas locales y remotas con filtrado por texto, menu de accion con navegacion horizontal, inputs de texto para nombre de rama y nombre de worktree, y ejecucion directa de `git worktree add`.
 
-Para lazygit: `signal.SIG_IGN` en Python + `preexec_fn` que restaura `SIG_DFL` antes de `exec lazygit`, de modo que Ctrl+C sale de lazygit pero no del picker.
-
-### `bin/wtm`
-Wrapper zsh de 3 lineas: llama a `wtm.py` con el path del fichero temporal como `$1`. La funcion en `.zshrc` lee ese fichero y hace el `cd` (unica operacion que no puede hacer un subproceso).
+### `wtm.plugin.zsh`
+Define la funcion shell `wtm()`: llama a `bin/wtm` con el path del fichero temporal como `$1`. La funcion lee ese fichero y hace el `cd` (unica operacion que no puede hacer un subproceso).
 
 ## Requisitos
 
-- **`/opt/homebrew/bin/wt`** — binario de worktrunk
-- **Python 3** en `/opt/homebrew/bin/python3`
-- **`lazygit`** — opcional, solo para tecla `l`
-- **`eval "$(/opt/homebrew/bin/brew shellenv)"`** en `.zshrc` para que PATH este disponible en subprocesos
+- **`git`** en PATH — requerido
+- **`lazygit`** en PATH — opcional, solo para tecla `l`
+- **`gh`** en PATH — opcional, solo para columna PR
 
 ## Instalacion
+
+Compilar el binario:
+
+```bash
+make build
+```
 
 Añadir en `~/.zshrc`:
 
 ```zsh
-function wtm() {
-  local _tmp; _tmp=$(mktemp)
-  /Users/avilches/Work/Proy/Other/wtm/bin/wtm "$_tmp"
-  local _path; _path=$(<"$_tmp" 2>/dev/null)
-  rm -f "$_tmp"
-  [[ -n "$_path" ]] && cd "$_path"
-}
+source /path/to/wtm/wtm.plugin.zsh
 ```
-
-O añadir `bin/` al PATH y usar la funcion con `wtm "$_tmp"`.
